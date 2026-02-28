@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react'; // Add useEffect here
 
 export default function CommuterPortal() {
   const [email, setEmail] = useState('');
@@ -58,6 +58,23 @@ export default function CommuterPortal() {
     }
   };
 
+  // --- ADD THIS BLOCK HERE ---
+  // This is the "Heartbeat" that checks for new bus taps every 10 seconds
+  useEffect(() => {
+    // Only set up the timer if we are logged in and have a card to track
+    if (isLoggedIn && cardData?.card_number) {
+      const interval = setInterval(() => {
+        console.log("Heartbeat: Checking for new bus taps...");
+        fetchCardData(cardData.card_number);
+      }, 10000); // 10 seconds
+
+      // This cleans up the timer if you log out or close the page
+      return () => clearInterval(interval);
+    }
+  }, [isLoggedIn, cardData?.card_number]);
+  // ---------------------------
+
+
   // --- UI: LOGIN SCREEN ---
   if (!isLoggedIn) {
     return (
@@ -106,6 +123,16 @@ export default function CommuterPortal() {
             >
               {isLoading ? 'Authenticating...' : 'Secure Login'}
             </button>
+
+            <button 
+              onClick={() => {
+              localStorage.removeItem('user'); // Clear the session
+              window.location.reload();      // Send them back to login
+               }}
+              className="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg text-xs font-bold transition"
+              >
+            Logout
+          </button>
           </form>
         </div>
       </main>
