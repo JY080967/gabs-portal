@@ -1,7 +1,7 @@
 // simulator.mjs
 // Real-Time Cron-based Golden Arrow Simulator
 
-const API_BASE = 'http://localhost:3000/api/ga/cards';
+const API_BASE = 'https://gabs-portal.vercel.app';
 
 // The 10 Real-World Commuter Personas
 const COMMUTERS = [
