@@ -15,17 +15,19 @@ export async function POST(request: Request) {
     }
 
     // 1. Check the portal_users table for a match
+
+    // We use 'password_hash' because that is the actual column name in your DB
     const { data: user, error } = await supabase
-      .from('portal_users')
-      .select('full_name, linked_ga_card')
-      .eq('email', email)
-      .eq('password', password) // In a real production app, we would hash this first!
-      .single();
+    .from('portal_users')
+    .select('full_name, linked_ga_card')
+    .eq('email', email)
+    .eq('password_hash', password) 
+    .single();
 
     if (error || !user) {
-      return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
-    }
-
+    console.log("Login failed for:", email);
+    return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
+}
     // 2. Return the user's specific linked Gold Card
     return NextResponse.json({
       message: 'Authentication successful',
