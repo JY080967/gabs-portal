@@ -1,13 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
-export const metadata = {
-  title: "GABS Core Ops | Tech Support",
-  description: "L1/L2 Technical Support Dashboard",
-};
 
 export default function TechSupportDashboard() {
+    // --- Page Title Logic ---
+  useEffect(() => {
+    document.title = "GABS Core Ops | Tech Support";
+  }, []);
   // --- Admin Auth State ---
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
   const [adminUser, setAdminUser] = useState('');
