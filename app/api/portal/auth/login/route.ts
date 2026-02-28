@@ -1,34 +1,38 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import bcrypt from 'bcryptjs'; // 1. Import Bcrypt
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!; 
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const { email, password } = body;
+    const { email, password } = await request.json();
 
     if (!email || !password) {
       return NextResponse.json({ error: 'Email and password are required' }, { status: 400 });
     }
 
-    // 1. Check the portal_users table for a match
-
-    // We use 'password_hash' because that is the actual column name in your DB
+    // 2. Fetch the user by Email ONLY
     const { data: user, error } = await supabase
-    .from('portal_users')
-    .select('full_name, linked_ga_card')
-    .eq('email', email)
-    .eq('password_hash', password) 
-    .single();
+      .from('portal_users')
+      .select('full_name, linked_ga_card, password_hash')
+      .eq('email', email)
+      .single();
 
     if (error || !user) {
-    console.log("Login failed for:", email);
-    return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
-}
-    // 2. Return the user's specific linked Gold Card
+      return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
+    }
+
+    // 3. SECURE CHECK: Compare the plain-text password to the DB hash
+    const isPasswordValid = await bcrypt.compare(password, user.password_hash);
+
+    if (!isPasswordValid) {
+      return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
+    }
+
+    // 4. Success!
     return NextResponse.json({
       message: 'Authentication successful',
       full_name: user.full_name,
