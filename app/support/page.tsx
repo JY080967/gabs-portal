@@ -2,6 +2,11 @@
 
 import { useState } from 'react';
 
+export const metadata = {
+  title: "GABS Core Ops | Tech Support",
+  description: "L1/L2 Technical Support Dashboard",
+};
+
 export default function TechSupportDashboard() {
   // --- Admin Auth State ---
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
