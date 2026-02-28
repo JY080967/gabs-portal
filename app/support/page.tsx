@@ -3,10 +3,27 @@
 import { useState } from 'react';
 
 export default function TechSupportDashboard() {
+  // --- Admin Auth State ---
+  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
+  const [adminUser, setAdminUser] = useState('');
+  const [adminPass, setAdminPass] = useState('');
+  const [authError, setAuthError] = useState('');
+
+  // --- Dashboard State ---
   const [searchQuery, setSearchQuery] = useState('');
   const [customerData, setCustomerData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+
+  const handleAdminLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (adminUser === 'JadminVN' && adminPass === 'admin@123') {
+      setIsAdminLoggedIn(true);
+      setAuthError('');
+    } else {
+      setAuthError('Unauthorized: Invalid Support Credentials');
+    }
+  };
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -15,6 +32,7 @@ export default function TechSupportDashboard() {
     setCustomerData(null);
 
     try {
+      // Notice we use a relative path here!
       const res = await fetch('/api/support/search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -32,10 +50,49 @@ export default function TechSupportDashboard() {
     }
   };
 
+  // --- RENDER: LOGIN SCREEN ---
+  if (!isAdminLoggedIn) {
+    return (
+      <main className="min-h-screen bg-slate-900 flex items-center justify-center p-4 font-sans">
+        <div className="bg-slate-800 p-8 rounded-2xl shadow-2xl max-w-md w-full border border-slate-700">
+          <h1 className="text-2xl font-bold text-white mb-2 text-center">Core Ops Portal</h1>
+          <p className="text-slate-400 text-sm text-center mb-6">Restricted Access. L1/L2 Tech Support Only.</p>
+          
+          <form onSubmit={handleAdminLogin} className="space-y-4">
+            <div>
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Agent ID</label>
+              <input 
+                type="text" 
+                value={adminUser}
+                onChange={(e) => setAdminUser(e.target.value)}
+                className="w-full mt-1 bg-slate-900 text-white border border-slate-700 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500"
+                required
+              />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Passcode</label>
+              <input 
+                type="password" 
+                value={adminPass}
+                onChange={(e) => setAdminPass(e.target.value)}
+                className="w-full mt-1 bg-slate-900 text-white border border-slate-700 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500"
+                required
+              />
+            </div>
+            {authError && <p className="text-red-400 text-sm font-semibold">{authError}</p>}
+            <button type="submit" className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-lg mt-4 transition-colors">
+              Authenticate
+            </button>
+          </form>
+        </div>
+      </main>
+    );
+  }
+
+  // --- RENDER: MAIN DASHBOARD ---
   return (
     <main className="min-h-screen bg-slate-100 font-sans p-8">
       <div className="max-w-6xl mx-auto">
-        
         {/* Header & Search */}
         <div className="bg-slate-900 rounded-2xl p-8 shadow-xl mb-8 flex flex-col md:flex-row justify-between items-center gap-6">
           <div>
@@ -72,7 +129,6 @@ export default function TechSupportDashboard() {
         {/* The 360-Degree Customer View */}
         {customerData && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            
             {/* Left Column: Profile & Hardware */}
             <div className="space-y-8">
               <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
@@ -88,7 +144,6 @@ export default function TechSupportDashboard() {
                   {customerData.hardware.status}
                 </span>
                 
-                {/* Visual placeholders for our next feature */}
                 <div className="mt-6 flex flex-col gap-2">
                   <button className="bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 py-2 rounded-lg text-sm font-semibold transition">Lock Hardware (Lost/Stolen)</button>
                   <button className="bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 py-2 rounded-lg text-sm font-semibold transition">Issue Courtesy Trip</button>
@@ -130,7 +185,6 @@ export default function TechSupportDashboard() {
                 ))}
               </div>
             </div>
-
           </div>
         )}
       </div>
