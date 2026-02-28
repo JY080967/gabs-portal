@@ -19,7 +19,7 @@ export async function POST(request: Request) {
       .from('portal_users')
       .select('full_name, linked_ga_card')
       .eq('email', email)
-      .eq('password_hash', password) // In a real production app, we would hash this first!
+      .eq('password', password) // In a real production app, we would hash this first!
       .single();
 
     if (error || !user) {
