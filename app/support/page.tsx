@@ -4,17 +4,6 @@ import { useState, useEffect } from 'react';
 
 
 export default function TechSupportDashboard() {
-useEffect(() => {
-  // 1. Change the Tab Title
-  document.title = "GABS Core Ops | Tech Support";
-
-  // 2. Change the Tab Icon
-  const link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
-  if (link) {
-    link.href = "/support-icon.png"; // Points to your tech icon in 'public'
-  }
-}, []);
-  
   // --- Admin Auth State ---
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
   const [adminUser, setAdminUser] = useState('');
