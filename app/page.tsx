@@ -124,15 +124,6 @@ export default function CommuterPortal() {
               {isLoading ? 'Authenticating...' : 'Secure Login'}
             </button>
 
-            <button 
-              onClick={() => {
-              localStorage.removeItem('user'); // Clear the session
-              window.location.reload();      // Send them back to login
-               }}
-              className="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg text-xs font-bold transition"
-              >
-            Logout
-          </button>
           </form>
         </div>
       </main>

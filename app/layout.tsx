@@ -12,12 +12,9 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata = {
+export const metadata: Metadata = {
   title: "GABS Digital | Commuter Portal",
   description: "Manage your Golden Arrow Gold Card",
-  icons: {
-    icon: "/favicon.ico", // This looks in the 'public' folder
-  },
 };
 
 export default function RootLayout({
