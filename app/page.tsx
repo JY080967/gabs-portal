@@ -141,16 +141,7 @@ export default function CommuterPortal() {
             <h1 className="font-bold text-xl tracking-wide text-white">GABS GOLD</h1>
             <p className="text-amber-100 text-sm font-medium">Welcome, {userName}</p>
           </div>
-          <button 
-            onClick={() => {
-              setIsLoggedIn(false);
-              setEmail('');
-              setPassword('');
-            }}
-            className="bg-black/30 hover:bg-black/50 transition px-3 py-1 rounded-full text-xs font-semibold text-amber-50"
-          >
-            Logout
-          </button>
+          
         </div>
 
         {/* Card Details */}
