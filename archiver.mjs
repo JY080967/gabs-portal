@@ -1,76 +1,95 @@
 // archiver.mjs
-// Nightly ETL Job: Moves old PostgreSQL data to cheap Object Storage
+// Enterprise ELT Pipeline: Supabase (Hot) -> Cloudflare R2 (Cold Data Lake)
 
 import { createClient } from '@supabase/supabase-js';
-import 'dotenv/config';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const supabase = createClient(supabaseUrl, supabaseKey);
+// 1. Initialize Secure Cloud Clients
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY // Bypass RLS for backend data engineering tasks
+);
 
-async function runArchiver() {
-  console.log('==================================================');
-  console.log('📦 Starting Cold Storage ETL Pipeline...');
-  console.log('==================================================');
+const s3Client = new S3Client({
+  region: 'auto', // Cloudflare handles edge routing automatically
+  endpoint: process.env.R2_ENDPOINT,
+  credentials: {
+    accessKeyId: process.env.R2_ACCESS_KEY_ID,
+    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
+  }
+});
+
+async function runELTPipeline() {
+  console.log("=========================================");
+  console.log("🌊 Initiating GABS Data Lake Archiver");
+  console.log("=========================================");
 
   try {
-    // 1. Define the retention policy (e.g., 30 days for this test)
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - 30);
-    const cutoffString = cutoffDate.toISOString();
-
-    console.log(`🔍 Scanning ledger for records older than ${cutoffDate.toLocaleDateString()}...`);
-
-    // 2. EXTRACT: Pull the old records from the live database (Removed 'id')
-    const { data: oldRecords, error: fetchErr } = await supabase
+    // --- 1. EXTRACT ---
+    // For testing purposes, we will archive data older than 15 minutes.
+    // In production, this would be set to 24 hours (24 * 60 * 60 * 1000).
+    const cutoffTime = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+    
+    console.log(`🔍 Scanning Supabase for records older than: ${cutoffTime}`);
+    
+    // Note: If your column is named 'created_at' instead of 'timestamp', change it below.
+    const { data: records, error: extractError } = await supabase
       .from('ga_tap_ledger')
-      .select('card_number, location, timestamp') 
-      .lt('timestamp', cutoffString);
+      .select('*')
+      .lt('timestamp', cutoffTime);
 
-    if (fetchErr) throw fetchErr;
-
-    if (!oldRecords || oldRecords.length === 0) {
-      console.log('✅ No old records found. Database is clean.');
-      return;
+    if (extractError) throw new Error(`Extract Failed: ${extractError.message}`);
+    if (!records || records.length === 0) {
+      return console.log("✅ Pipeline Complete: No cold records found to archive.");
     }
 
-    console.log(`📊 Found ${oldRecords.length} stale records. Processing...`);
+    console.log(`📦 Extracted ${records.length} records. Beginning transformation...`);
 
-    // 3. TRANSFORM: Convert JSON array into a raw CSV string (Removed 'id')
-    const headers = ['card_number', 'location', 'timestamp'];
-    const csvRows = oldRecords.map(row => 
-      `${row.card_number},"${row.location}",${row.timestamp}`
+    // --- 2. TRANSFORM ---
+    // Convert JSON array to a flat CSV string
+    const headers = Object.keys(records[0]).join(',');
+    const rows = records.map(record => 
+      Object.values(record).map(value => `"${value}"`).join(',') // Wrap in quotes to prevent comma injection
     );
-    const csvData = [headers.join(','), ...csvRows].join('\n');
+    const csvData = [headers, ...rows].join('\n');
 
-    // 4. LOAD: Upload the compressed CSV to Supabase Storage
-    const fileName = `ledger_archive_${new Date().toISOString().split('T')[0]}.csv`;
-    
-    const { error: uploadErr } = await supabase.storage
-      .from('cold-storage')
-      .upload(fileName, csvData, {
-        contentType: 'text/csv',
-        upsert: true 
-      });
+    // --- 3. LOAD ---
+    // Generate a unique, timestamped filename
+    const filename = `gabs-archive-${new Date().toISOString().replace(/[:.]/g, '-')}.csv`;
+    const objectKey = `historical-taps/${filename}`;
 
-    if (uploadErr) throw uploadErr;
-    console.log(`☁️ Successfully uploaded [${fileName}] to the Data Lake.`);
+    console.log(`☁️  Uploading to R2 Data Lake as: ${objectKey}`);
 
-    // 5. CLEANUP: Delete the extracted rows from the live PostgreSQL database
-    console.log('🧹 Purging archived records from the active database...');
-    const { error: deleteErr } = await supabase
-      .from('ga_tap_ledger')
-      .delete()
-      .lt('timestamp', cutoffString);
+    const uploadCommand = new PutObjectCommand({
+      Bucket: process.env.R2_BUCKET_NAME,
+      Key: objectKey,
+      Body: csvData,
+      ContentType: 'text/csv'
+    });
 
-    if (deleteErr) throw deleteErr;
+    const s3Response = await s3Client.send(uploadCommand);
 
-    console.log('✅ ARCHIVE COMPLETE. Live database optimized.');
-    console.log('==================================================');
+// --- 4. VERIFY & CLEAN (The Safety Gate) ---
+    if (s3Response.$metadata.httpStatusCode === 200) {
+      console.log(`✅ Upload Confirmed. Purging records from Hot Storage...`);
+      
+      // Data Engineering Best Practice: Delete using the exact same symmetric condition we used to extract
+      const { error: deleteError } = await supabase
+        .from('ga_tap_ledger')
+        .delete()
+        .lt('timestamp', cutoffTime); 
+
+      if (deleteError) throw new Error(`Cleanup Failed (Data is safe in R2): ${deleteError.message}`);
+      
+      console.log("🎉 ELT Pipeline Executed Successfully.");
+    } else {
+      throw new Error(`R2 Upload returned non-200 status: ${s3Response.$metadata.httpStatusCode}`);
+    }
 
   } catch (error) {
-    console.error('❌ Pipeline Failed:', error);
+    console.error("🚨 CRITICAL PIPELINE FAILURE:", error);
   }
 }
 
-runArchiver();
+// Execute the pipeline
+runELTPipeline();
