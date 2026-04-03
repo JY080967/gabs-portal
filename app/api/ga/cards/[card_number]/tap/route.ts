@@ -33,9 +33,9 @@ export async function POST(
     
     // If a malicious actor or broken simulator sends bad data, block it immediately
     if (!validation.success) {
-      console.error("API Security Rejection:", validation.error.errors);
+      console.error("API Security Rejection:", validation.error.issues);
       return NextResponse.json(
-        { error: 'Invalid telemetry payload structure', details: validation.error.errors },
+        { error: 'Invalid telemetry payload structure', details: validation.error.issues },
         { status: 400 }
       );
     }
