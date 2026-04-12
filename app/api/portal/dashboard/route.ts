@@ -21,21 +21,19 @@ export async function GET() {
     const supabase = await getSecureClient();
 
     // 3. Fetch MVP Data concurrently
-    // RLS GUARANTEE: We don't even need a WHERE clause for the card number. 
-    // Postgres reads the JWT and automatically filters out other commuters' data.
-   const [productRes, tapsRes] = await Promise.all([
+    const [productRes, tapsRes] = await Promise.all([
       supabase
         .from('ga_card_products')
         .select('product_type, rides_remaining, status')
-        // We removed the .eq('ACTIVE') filter so it fetches frozen products too!
+        .order('purchase_date', { ascending: false }) // <-- FIX: Sort by newest
+        .limit(1)                                     // <-- FIX: Grab only the top one
         .single(), 
-        
         
       supabase
         .from('ga_tap_ledger')
         .select('location, timestamp, bus_id')
         .order('timestamp', { ascending: false })
-        .limit(10) // MVP Scope: strictly the last 10 trips
+        .limit(10) 
     ]);
 
     // Handle the edge case where a user has no active product
